@@ -66,6 +66,7 @@ function App() {
   const [sleepStats, setSleepStats] = useState<SleepStat[]>([]);
   const [weeklySleepStats, setWeeklySleepStats] = useState<WeeklySleepStat[]>([]);
   const [hourDistributionStats, setHourDistributionStats] = useState<HourDistributionStat[]>([]);
+  const [showStats, setShowStats] = useState(true);
 
   useEffect(() => {
     fetchSleeps();
@@ -494,24 +495,34 @@ function App() {
         </div>
       </form>
 
-      <h2 className="text-xl font-bold mb-4">수면 통계</h2>
-      <div className="grid grid-cols-1 gap-4 mb-8">
-        <div className="p-4 border rounded shadow min-h-80">
-          <Bar data={averageDurationData} options={chartOptions} />
+      <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
+        수면 통계
+        <button
+          onClick={() => setShowStats(!showStats)}
+          className="text-blue-500 hover:text-blue-700 text-sm focus:outline-none"
+        >
+          {showStats ? '접기' : '펴기'}
+        </button>
+      </h2>
+      {showStats && (
+        <div className="grid grid-cols-1 gap-4 mb-8">
+          <div className="p-4 border rounded shadow min-h-80">
+            <Bar data={averageDurationData} options={chartOptions} />
+          </div>
+          <div className="p-4 border rounded shadow min-h-80">
+            <Line data={sleepCountData} options={sleepCountChartOptions} />
+          </div>
+          <div className="p-4 border rounded shadow min-h-80">
+            <Scatter data={scatterData} options={scatterChartOptions} />
+          </div>
+          <div className="p-4 border rounded shadow min-h-80">
+            <Bar data={weeklyDurationData} options={weeklyDurationChartOptions} />
+          </div>
+          <div className="p-4 border rounded shadow min-h-80">
+            <Bar data={hourDistributionData} options={hourDistributionChartOptions} />
+          </div>
         </div>
-        <div className="p-4 border rounded shadow min-h-80">
-          <Line data={sleepCountData} options={sleepCountChartOptions} />
-        </div>
-        <div className="p-4 border rounded shadow min-h-80">
-          <Scatter data={scatterData} options={scatterChartOptions} />
-        </div>
-        <div className="p-4 border rounded shadow min-h-80">
-          <Bar data={weeklyDurationData} options={weeklyDurationChartOptions} />
-        </div>
-        <div className="p-4 border rounded shadow min-h-80">
-          <Bar data={hourDistributionData} options={hourDistributionChartOptions} />
-        </div>
-      </div>
+      )}
 
       <h2 className="text-xl font-bold mb-4">수면 기록 목록</h2>
       <div className="space-y-4">
