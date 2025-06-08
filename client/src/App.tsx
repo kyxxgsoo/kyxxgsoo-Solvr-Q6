@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import 'chartjs-adapter-date-fns';
 import { Routes, Route } from 'react-router-dom'
 import SleepTracker from './components/SleepTracker'
-import { Bar, Line } from 'react-chartjs-2';
+import { Bar, Line, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +15,8 @@ import {
   Legend,
   PointElement,
   LineElement,
+  TimeScale,
+  ScatterController,
 } from 'chart.js';
 
 ChartJS.register(
@@ -24,7 +27,9 @@ ChartJS.register(
   Tooltip,
   Legend,
   PointElement,
-  LineElement
+  LineElement,
+  TimeScale,
+  ScatterController
 );
 
 interface Sleep {
@@ -216,6 +221,92 @@ function App() {
     },
   };
 
+  const scatterData = {
+    datasets: [
+      {
+        label: '수면 시작 시간',
+        data: sleeps.map(s => ({
+          x: new Date(s.startTime).setHours(0, 0, 0, 0),
+          y: new Date(s.startTime).getHours() + new Date(s.startTime).getMinutes() / 60,
+          id: s.id,
+          note: s.note,
+        })),
+        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+        borderColor: 'rgba(255, 99, 132, 1)',
+        pointRadius: 5,
+      },
+      {
+        label: '수면 종료 시간',
+        data: sleeps.map(s => ({
+          x: new Date(s.endTime).setHours(0, 0, 0, 0),
+          y: new Date(s.endTime).getHours() + new Date(s.endTime).getMinutes() / 60,
+          id: s.id,
+          note: s.note,
+        })),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        pointRadius: 5,
+      },
+    ],
+  };
+
+  const scatterChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: '수면 시간 변동성',
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const label = context.dataset.label || '';
+            const date = new Date(context.parsed.x);
+            const time = context.parsed.y;
+            const hours = Math.floor(time);
+            const minutes = Math.round((time - hours) * 60);
+            const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            return `${label}: ${format(date, 'yyyy-MM-dd', { locale: ko })} ${formattedTime}`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        type: 'time' as const,
+        time: {
+          unit: 'day',
+          tooltipFormat: 'yyyy-MM-dd',
+          displayFormats: {
+            day: 'MM/dd'
+          },
+        } as const,
+        title: {
+          display: true,
+          text: '날짜',
+        },
+      },
+      y: {
+        type: 'linear' as const,
+        min: 0,
+        max: 24,
+        ticks: {
+          callback: function(value: string | number) {
+            const hours = Number(value);
+            return `${String(hours).padStart(2, '0')}:00`;
+          },
+        },
+        title: {
+          display: true,
+          text: '시간 (시)',
+        },
+      },
+    },
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">수면 기록</h1>
@@ -282,6 +373,12 @@ function App() {
         </div>
       </div>
 
+      <h2 className="text-xl font-bold mb-4">수면 시간 변동성</h2>
+      <div className="p-4 border rounded shadow mb-8">
+        <Scatter data={scatterData} options={scatterChartOptions} />
+      </div>
+
+      <h2 className="text-xl font-bold mb-4">수면 기록 목록</h2>
       <div className="space-y-4">
         {sleeps.map((sleep) => (
           <div key={sleep.id} className="border p-4 rounded">
