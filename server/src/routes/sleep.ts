@@ -28,6 +28,28 @@ export async function sleepRoutes(app: FastifyInstance) {
       });
     }
 
+    // 중복 수면 시간 유효성 검증
+    const overlappingSleeps = await prisma.sleep.findMany({
+      where: {
+        OR: [
+          {
+            startTime: {
+              lt: new Date(endTime),
+            },
+            endTime: {
+              gt: new Date(startTime),
+            },
+          },
+        ],
+      },
+    });
+
+    if (overlappingSleeps.length > 0) {
+      return reply.status(400).send({
+        error: '이미 해당 시간에 다른 수면 기록이 존재합니다.',
+      });
+    }
+
     const sleep = await prisma.sleep.create({
       data: {
         startTime: new Date(startTime),
@@ -162,6 +184,31 @@ export async function sleepRoutes(app: FastifyInstance) {
     if (new Date(startTime) >= new Date(endTime)) {
       return reply.status(400).send({
         error: '수면 시작 시간은 종료 시간보다 이전이어야 합니다.',
+      });
+    }
+
+    // 중복 수면 시간 유효성 검증 (현재 수정 중인 기록 제외)
+    const overlappingSleeps = await prisma.sleep.findMany({
+      where: {
+        id: {
+          not: id, // 현재 업데이트 중인 기록 제외
+        },
+        OR: [
+          {
+            startTime: {
+              lt: new Date(endTime),
+            },
+            endTime: {
+              gt: new Date(startTime),
+            },
+          },
+        ],
+      },
+    });
+
+    if (overlappingSleeps.length > 0) {
+      return reply.status(400).send({
+        error: '이미 해당 시간에 다른 수면 기록이 존재합니다.',
       });
     }
 
