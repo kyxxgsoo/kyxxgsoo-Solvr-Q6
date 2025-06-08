@@ -67,6 +67,7 @@ function App() {
   const [weeklySleepStats, setWeeklySleepStats] = useState<WeeklySleepStat[]>([]);
   const [hourDistributionStats, setHourDistributionStats] = useState<HourDistributionStat[]>([]);
   const [showStats, setShowStats] = useState(true);
+  const [showSleepList, setShowSleepList] = useState(true);
 
   useEffect(() => {
     fetchSleeps();
@@ -524,36 +525,46 @@ function App() {
         </div>
       )}
 
-      <h2 className="text-xl font-bold mb-4">수면 기록 목록</h2>
-      <div className="space-y-4">
-        {sleeps.map((sleep) => (
-          <div key={sleep.id} className="border p-4 rounded">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold">
-                  {format(new Date(sleep.startTime), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })} ~{' '}
-                  {format(new Date(sleep.endTime), 'HH:mm', { locale: ko })}
-                </p>
-                {sleep.note && <p className="mt-2 text-gray-600">{sleep.note}</p>}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(sleep)}
-                  className="text-blue-500 hover:text-blue-700"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={() => handleDelete(sleep.id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  삭제
-                </button>
+      <h2 className="text-xl font-bold mb-4 flex items-center justify-between">
+        수면 기록 목록
+        <button
+          onClick={() => setShowSleepList(!showSleepList)}
+          className="text-blue-500 hover:text-blue-700 text-sm focus:outline-none"
+        >
+          {showSleepList ? '접기' : '펴기'}
+        </button>
+      </h2>
+      {showSleepList && (
+        <div className="space-y-4">
+          {sleeps.map((sleep) => (
+            <div key={sleep.id} className="border p-4 rounded">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-semibold">
+                    {format(new Date(sleep.startTime), 'yyyy년 MM월 dd일 HH:mm', { locale: ko })} ~{' '}
+                    {format(new Date(sleep.endTime), 'HH:mm', { locale: ko })}
+                  </p>
+                  {sleep.note && <p className="mt-2 text-gray-600">{sleep.note}</p>}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(sleep)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={() => handleDelete(sleep.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
