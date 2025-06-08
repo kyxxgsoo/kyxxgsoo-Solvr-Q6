@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
 
 // 사용자 테이블 스키마
 export const users = sqliteTable('users', {
@@ -20,3 +21,12 @@ export const users = sqliteTable('users', {
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type UpdateUser = Partial<Omit<NewUser, 'id' | 'createdAt'>>
+
+export const sleepRecords = sqliteTable('sleep_records', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  startTime: text('start_time').notNull(),
+  endTime: text('end_time').notNull(),
+  notes: text('notes'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+})
