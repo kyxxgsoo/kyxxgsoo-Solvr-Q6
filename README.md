@@ -1,85 +1,81 @@
-# 풀스택 서비스 보일러 플레이트
+# 수면 기록 앱
 
-## 프로젝트 개요
+수면 시간과 특이사항을 기록하고 관리할 수 있는 웹 애플리케이션입니다.
 
-이 보일러 플레이트는 풀스택 웹 애플리케이션 개발을 위한 기본 구조를 제공합니다. monorepo 구조로 클라이언트와 서버를 효율적으로 관리하며, 현대적인 웹 개발 기술 스택을 활용합니다.
+## 기능
+
+### 기본 기능
+- 사용자는 매일 수면시간 및 특이사항을 기록할 수 있습니다.
+- 사용자는 기록한 내역을 리스트로 확인할 수 있습니다.
+- 사용자는 기록한 내역을 업데이트하거나, 삭제할 수 있습니다.
+
+### 추가 기능
+- 수면 시작 시간은 종료 시간보다 이전이어야 합니다.
+- 수면 기록은 최신순으로 정렬되어 표시됩니다.
+- 날짜와 시간은 한국어 형식으로 표시됩니다.
 
 ## 기술 스택
 
-### 공통
+### Frontend
+- React
+- TypeScript
+- Tailwind CSS
+- date-fns (날짜 포맷팅)
 
-- 패키지 매니저: pnpm (workspace 기능 활용)
-- 언어: TypeScript
-- Node.js 버전: 22.x
-- 테스트: Vitest
-- 코드 품질: Prettier
+### Backend
+- Node.js
+- Fastify
+- TypeScript
+- Prisma
+- PostgreSQL
+- Zod (데이터 유효성 검증)
 
-### 클라이언트
+## 시작하기
 
-- 프레임워크: React
-- 빌드 도구: Vite
-- 라우팅: React Router
-- 스타일링: TailwindCSS
+### 환경 설정
+1. `.env` 파일을 생성하고 다음 환경 변수를 설정합니다:
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/sleep_tracker"
+```
 
-### 서버
-
-- 프레임워크: Fastify
-- 데이터베이스: SQLite with DirzzleORM
-
-## 설치 및 실행
-
-### 초기 설치
-
+### 설치 및 실행
+1. 의존성 설치:
 ```bash
-# 프로젝트 루트 디렉토리에서 실행
 pnpm install
 ```
 
-### 개발 서버 실행
-
+2. 데이터베이스 마이그레이션:
 ```bash
-# 클라이언트 및 서버 동시 실행
+pnpm migrate
+```
+
+3. 개발 서버 실행:
+```bash
 pnpm dev
-
-# 클라이언트만 실행
-pnpm dev:client
-
-# 서버만 실행
-pnpm dev:server
 ```
 
-### 테스트 실행
-
-```bash
-# 클라이언트 테스트
-pnpm test:client
-
-# 서버 테스트
-pnpm test:server
-
-# 모든 테스트 실행
-pnpm test
-```
-
-### 빌드
-
-```bash
-# 클라이언트 및 서버 빌드
-pnpm build
-```
-
-## 환경 변수 설정
-
-- 클라이언트: `client/.env` 파일에 설정 (예시는 `client/.env.example` 참조)
-- 서버: `server/.env` 파일에 설정 (예시는 `server/.env.example` 참조)
+- 클라이언트: http://localhost:3000
+- 서버: http://localhost:8000
 
 ## API 엔드포인트
 
-서버는 다음과 같은 기본 API 엔드포인트를 제공합니다:
+### 수면 기록
+- `GET /api/sleep`: 모든 수면 기록 조회
+- `POST /api/sleep`: 새로운 수면 기록 생성
+- `PUT /api/sleep/:id`: 기존 수면 기록 업데이트
+- `DELETE /api/sleep/:id`: 수면 기록 삭제
 
-- `GET /api/health`: 서버 상태 확인
-- `GET /api/users`: 유저 목록 조회
-- `GET /api/users/:id`: 특정 유저 조회
-- `POST /api/users`: 새 유저 추가
-- `PUT /api/users/:id`: 유저 정보 수정
-- `DELETE /api/users/:id`: 유저 삭제
+### 요청/응답 형식
+```typescript
+// POST /api/sleep 또는 PUT /api/sleep/:id
+{
+  "startTime": "2024-03-20T23:00:00Z",
+  "endTime": "2024-03-21T07:00:00Z",
+  "note": "수면의 질이 좋았음"
+}
+```
+
+## 유효성 검증
+- 수면 시작 시간은 종료 시간보다 이전이어야 합니다.
+- 모든 시간은 ISO 8601 형식의 문자열이어야 합니다.
+- 특이사항(note)은 선택사항입니다.
