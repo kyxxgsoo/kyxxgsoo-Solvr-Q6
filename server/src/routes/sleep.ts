@@ -1,61 +1,99 @@
 import { FastifyInstance } from 'fastify';
-import { sleepRecords } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma';
 
-export default async function sleepRoutes(fastify: FastifyInstance) {
+const sleepSchema = z.object({
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  note: z.string().optional(),
+});
+
+export async function sleepRoutes(app: FastifyInstance) {
   // 수면 기록 생성
-  fastify.post('/sleep', async (request, reply) => {
-    const { startTime, endTime, notes } = request.body as {
-      startTime: string;
-      endTime: string;
-      notes?: string;
-    };
+  app.post('/sleep', async (request, reply) => {
+    const { startTime, endTime, note } = sleepSchema.parse(request.body);
 
-    const result = await fastify.db.insert(sleepRecords).values({
-      startTime,
-      endTime,
-      notes,
+    // 수면 시간 유효성 검증
+    if (new Date(startTime) >= new Date(endTime)) {
+      return reply.status(400).send({
+        error: '수면 시작 시간은 종료 시간보다 이전이어야 합니다.',
+      });
+    }
+
+    const sleep = await prisma.sleep.create({
+      data: {
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        note,
+      },
     });
 
-    return reply.code(201).send(result);
+    return reply.status(201).send(sleep);
   });
 
   // 수면 기록 목록 조회
-  fastify.get('/sleep', async (request, reply) => {
-    const records = await fastify.db.select().from(sleepRecords).orderBy(sleepRecords.createdAt);
-    return reply.send(records);
+  app.get('/sleep', async () => {
+    const sleeps = await prisma.sleep.findMany({
+      orderBy: {
+        startTime: 'desc',
+      },
+    });
+
+    return sleeps;
   });
 
-  // 수면 기록 수정
-  fastify.put('/sleep/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const { startTime, endTime, notes } = request.body as {
-      startTime: string;
-      endTime: string;
-      notes?: string;
-    };
+  // 수면 기록 업데이트
+  app.put('/sleep/:id', async (request, reply) => {
+    const paramsSchema = z.object({
+      id: z.string().uuid(),
+    });
 
-    const result = await fastify.db
-      .update(sleepRecords)
-      .set({
-        startTime,
-        endTime,
-        notes,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(sleepRecords.id, parseInt(id)));
+    const { id } = paramsSchema.parse(request.params);
+    const { startTime, endTime, note } = sleepSchema.parse(request.body);
 
-    return reply.send(result);
+    // 수면 시간 유효성 검증
+    if (new Date(startTime) >= new Date(endTime)) {
+      return reply.status(400).send({
+        error: '수면 시작 시간은 종료 시간보다 이전이어야 합니다.',
+      });
+    }
+
+    try {
+      const sleep = await prisma.sleep.update({
+        where: { id },
+        data: {
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          note,
+        },
+      });
+
+      return sleep;
+    } catch (error) {
+      return reply.status(404).send({
+        error: '해당 수면 기록을 찾을 수 없습니다.',
+      });
+    }
   });
 
   // 수면 기록 삭제
-  fastify.delete('/sleep/:id', async (request, reply) => {
-    const { id } = request.params as { id: string };
-    
-    await fastify.db
-      .delete(sleepRecords)
-      .where(eq(sleepRecords.id, parseInt(id)));
+  app.delete('/sleep/:id', async (request, reply) => {
+    const paramsSchema = z.object({
+      id: z.string().uuid(),
+    });
 
-    return reply.code(204).send();
+    const { id } = paramsSchema.parse(request.params);
+
+    try {
+      await prisma.sleep.delete({
+        where: { id },
+      });
+
+      return reply.status(204).send();
+    } catch (error) {
+      return reply.status(404).send({
+        error: '해당 수면 기록을 찾을 수 없습니다.',
+      });
+    }
   });
 } 
