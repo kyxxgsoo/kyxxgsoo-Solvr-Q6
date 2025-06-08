@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify'
 import { AppContext } from '../types/context.js'
 import { createUserRoutes } from './userRoutes.js'
 import healthRoutes from './healthRoutes.js'
-import sleepRoutes from './sleep.js'
+import { sleepRoutes } from './sleep.js'
 
 // 모든 라우트 등록
 export const createRoutes = (context: AppContext) => async (fastify: FastifyInstance) => {
