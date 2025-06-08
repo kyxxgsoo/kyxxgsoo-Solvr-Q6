@@ -45,6 +45,17 @@ interface SleepStat {
   sleepCount: number;
 }
 
+interface WeeklySleepStat {
+  week: string;
+  totalDuration: number;
+}
+
+interface HourDistributionStat {
+  hour: string;
+  starts: number;
+  ends: number;
+}
+
 function App() {
   const [sleeps, setSleeps] = useState<Sleep[]>([]);
   const [startTime, setStartTime] = useState('');
@@ -53,10 +64,14 @@ function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [sleepStats, setSleepStats] = useState<SleepStat[]>([]);
+  const [weeklySleepStats, setWeeklySleepStats] = useState<WeeklySleepStat[]>([]);
+  const [hourDistributionStats, setHourDistributionStats] = useState<HourDistributionStat[]>([]);
 
   useEffect(() => {
     fetchSleeps();
     fetchSleepStats();
+    fetchWeeklySleepStats();
+    fetchHourDistributionStats();
   }, []);
 
   const fetchSleeps = async () => {
@@ -76,6 +91,26 @@ function App() {
       setSleepStats(data);
     } catch (error) {
       console.error('수면 통계를 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const fetchWeeklySleepStats = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/sleep/stats/weekly-duration');
+      const data = await response.json();
+      setWeeklySleepStats(data);
+    } catch (error) {
+      console.error('주별 수면 통계를 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const fetchHourDistributionStats = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/sleep/stats/hour-distribution');
+      const data = await response.json();
+      setHourDistributionStats(data);
+    } catch (error) {
+      console.error('수면 시간대별 분포를 불러오는데 실패했습니다:', error);
     }
   };
 
@@ -115,6 +150,8 @@ function App() {
 
       await fetchSleeps();
       await fetchSleepStats();
+      await fetchWeeklySleepStats();
+      await fetchHourDistributionStats();
       resetForm();
     } catch (error) {
       console.error('수면 기록 저장에 실패했습니다:', error);
@@ -143,6 +180,8 @@ function App() {
 
       await fetchSleeps();
       await fetchSleepStats();
+      await fetchWeeklySleepStats();
+      await fetchHourDistributionStats();
     } catch (error) {
       console.error('수면 기록 삭제에 실패했습니다:', error);
     }
@@ -307,6 +346,98 @@ function App() {
     },
   };
 
+  const weeklyDurationData = {
+    labels: weeklySleepStats.map(stat => format(new Date(stat.week), 'MM/dd', { locale: ko })),
+    datasets: [
+      {
+        label: '주간 총 수면 시간 (시간)',
+        data: weeklySleepStats.map(stat => stat.totalDuration.toFixed(2)),
+        backgroundColor: 'rgba(255, 159, 64, 0.6)',
+        borderColor: 'rgba(255, 159, 64, 1)',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const weeklyDurationChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: '주간 총 수면 시간 추이',
+      },
+    },
+    scales: {
+      y: {
+        ticks: {
+          stepSize: 1,
+          callback: function(value: string | number) {
+            return value + '시간';
+          },
+        },
+        title: {
+          display: true,
+          text: '총 수면 시간 (시간)',
+        },
+      },
+    },
+  };
+
+  const hourDistributionData = {
+    labels: hourDistributionStats.map(stat => `${stat.hour}:00`),
+    datasets: [
+      {
+        label: '수면 시작 횟수',
+        data: hourDistributionStats.map(stat => stat.starts),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+      },
+      {
+        label: '수면 종료 횟수',
+        data: hourDistributionStats.map(stat => stat.ends),
+        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+      },
+    ],
+  };
+
+  const hourDistributionChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: '수면 시작/종료 시간대별 분포',
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: '시간대',
+        },
+      },
+      y: {
+        ticks: {
+          stepSize: 1,
+          callback: function(value: string | number) {
+            if (Number.isInteger(value)) {
+              return value;
+            }
+            return null;
+          },
+        },
+        title: {
+          display: true,
+          text: '횟수',
+        },
+      },
+    },
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">수면 기록</h1>
@@ -364,18 +495,22 @@ function App() {
       </form>
 
       <h2 className="text-xl font-bold mb-4">수면 통계</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <div className="p-4 border rounded shadow">
           <Bar data={averageDurationData} options={chartOptions} />
         </div>
         <div className="p-4 border rounded shadow">
           <Line data={sleepCountData} options={sleepCountChartOptions} />
         </div>
-      </div>
-
-      <h2 className="text-xl font-bold mb-4">수면 시간 변동성</h2>
-      <div className="p-4 border rounded shadow mb-8">
-        <Scatter data={scatterData} options={scatterChartOptions} />
+        <div className="p-4 border rounded shadow">
+          <Scatter data={scatterData} options={scatterChartOptions} />
+        </div>
+        <div className="p-4 border rounded shadow">
+          <Bar data={weeklyDurationData} options={weeklyDurationChartOptions} />
+        </div>
+        <div className="p-4 border rounded shadow">
+          <Bar data={hourDistributionData} options={hourDistributionChartOptions} />
+        </div>
       </div>
 
       <h2 className="text-xl font-bold mb-4">수면 기록 목록</h2>
