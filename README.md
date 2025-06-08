@@ -13,6 +13,11 @@
 - 수면 시작 시간은 종료 시간보다 이전이어야 합니다.
 - 수면 기록은 최신순으로 정렬되어 표시됩니다.
 - 날짜와 시간은 한국어 형식으로 표시됩니다.
+- 지난 7일간의 수면 통계 (평균 수면 시간, 수면 기록 횟수)를 차트로 시각화합니다.
+- 수면 시간 변동성, 주별 총 수면 시간 추이, 수면 시간대별 분포 차트를 추가하여 다양한 수면 인사이트를 제공합니다.
+- 수면 통계 및 수면 기록 목록 섹션을 접거나 펼 수 있는 기능을 제공합니다.
+- 수면 기록 생성/수정 시 현재 시간보다 미래의 시간을 입력할 수 없도록 유효성 검사를 추가했습니다.
+- 수면 기록 생성/수정 시 기존 기록과 시간이 중복될 수 없도록 유효성 검사를 추가했습니다.
 
 ## 기술 스택
 
@@ -21,13 +26,15 @@
 - TypeScript
 - Tailwind CSS
 - date-fns (날짜 포맷팅)
+- react-chartjs-2, chart.js (차트 시각화)
+- chartjs-adapter-date-fns (Chart.js date-fns 어댑터)
 
 ### Backend
 - Node.js
 - Fastify
 - TypeScript
 - Prisma
-- PostgreSQL
+- SQLite
 - Zod (데이터 유효성 검증)
 
 ## 시작하기
@@ -35,7 +42,7 @@
 ### 환경 설정
 1. `.env` 파일을 생성하고 다음 환경 변수를 설정합니다:
 ```env
-DATABASE_URL="postgresql://username:password@localhost:5432/sleep_tracker"
+DATABASE_URL="file:./data/database.sqlite"
 ```
 
 ### 설치 및 실행
@@ -64,6 +71,9 @@ pnpm dev
 - `POST /api/sleep`: 새로운 수면 기록 생성
 - `PUT /api/sleep/:id`: 기존 수면 기록 업데이트
 - `DELETE /api/sleep/:id`: 수면 기록 삭제
+- `GET /api/sleep/stats`: 지난 7일간의 수면 통계 조회
+- `GET /api/sleep/stats/weekly-duration`: 주별 총 수면 시간 추이 조회
+- `GET /api/sleep/stats/hour-distribution`: 수면 시간대별 분포 조회
 
 ### 요청/응답 형식
 ```typescript
@@ -77,5 +87,32 @@ pnpm dev
 
 ## 유효성 검증
 - 수면 시작 시간은 종료 시간보다 이전이어야 합니다.
+- 수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.
+- 해당 시간대에 이미 다른 수면 기록이 존재하면 안 됩니다.
 - 모든 시간은 ISO 8601 형식의 문자열이어야 합니다.
 - 특이사항(note)은 선택사항입니다.
+
+## Changelog
+
+### Task 2: Mission Complete!
+- **통계 정보 화면 개선:**
+  - 지난 7일간의 일일 평균 수면 시간 및 일일 수면 기록 횟수를 보여주는 차트를 추가했습니다.
+  - 수면 시작 및 종료 시간의 일별 변동성을 보여주는 `수면 시간 변동성 차트`를 추가했습니다.
+  - 주별 총 수면 시간 추이를 보여주는 `주별 총 수면 시간 추이 차트`를 추가했습니다. 이 차트의 가로축 레이블은 '월 주차' 형식으로 표시되며, 월을 넘어가는 주는 '월 주차 ~ 다음 월 주차' 형식으로 표시됩니다.
+  - 시간대별 수면 시작 및 종료 횟수를 보여주는 `수면 시간대별 분포 차트`를 추가했습니다.
+  - 차트의 가독성을 높이기 위해 차트 배치를 `grid-cols-1`로 변경하고, 각 차트의 세로 길이를 늘렸습니다 (`min-h-80`).
+  - 수면 통계 및 수면 기록 목록 섹션을 접거나 펼 수 있는 토글 기능을 추가하여 UI 편의성을 개선했습니다.
+
+- **백엔드 기능 확장:**
+  - `server/src/routes/sleep.ts`에 `/api/sleep/stats/weekly-duration` 및 `/api/sleep/stats/hour-distribution` 엔드포인트를 추가하여 새로운 통계 데이터를 제공합니다.
+  - `server/src/routes/sleep.ts`의 `POST /api/sleep` 및 `PUT /api/sleep/:id` 엔드포인트에 `현재 시간보다 미래의 시간 입력 방지` 및 `수면 시간 중복 방지` 유효성 검사 로직을 추가했습니다.
+  - `server/prisma/seed.ts`를 수정하여 6월과 7월이 겹치는 주의 더미 데이터를 포함한 다양한 수면 기록 데이터를 추가했습니다.
+
+- **기술 스택 및 환경:**
+  - `server/prisma/schema.prisma`의 데이터베이스 공급자를 PostgreSQL에서 SQLite로 변경했습니다.
+  - 클라이언트(`client`)에 `react-chartjs-2`, `chart.js`, `chartjs-adapter-date-fns` 의존성을 추가했습니다.
+  - 서버(`server`)에 `date-fns` 의존성을 추가했습니다.
+
+- **오류 처리 개선:**
+  - 클라이언트(`client/src/App.tsx`)에서 `datetime-local` 입력 값을 Date 객체로 변환하고 ISO 형식으로 포맷하는 방식을 개선했습니다. ( `formatISO(new Date())` 사용).
+  - 서버(`server/src/routes/sleep.ts`)에서 Zod 유효성 검사 실패 시 `z.ZodError`의 `issues`를 분석하여 더 상세한 오류 메시지를 제공하도록 수정했습니다.
