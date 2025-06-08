@@ -1,7 +1,8 @@
-import { User, NewUser, UpdateUser } from '../db/schema'
+import type { User, NewUser, UpdateUser } from '../db/schema.js'
+export type { User, NewUser, UpdateUser } // ✅ 타입만 export
 
 // 사용자 관련 타입
-export { User, NewUser, UpdateUser }
+// export { User, NewUser, UpdateUser }
 
 // API 응답 타입
 export interface ApiResponse<T = any> {

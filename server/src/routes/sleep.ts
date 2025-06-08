@@ -1,8 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@lib/prisma';
-import { getWeek, startOfWeek, endOfWeek, format, parseISO } from 'date-fns';
-import { differenceInHours } from 'date-fns';
+import { getWeek, startOfWeek, endOfWeek, format, parseISO, differenceInHours } from 'date-fns';
+import { GoogleGenAI } from '@google/genai';
+import 'dotenv/config';
 
 interface SleepEntry {
   id: string;
@@ -20,6 +21,19 @@ const createSleepSchema = z.object({
 
 // 수면 기록 수정 스키마
 const updateSleepSchema = createSleepSchema;
+
+// AI 조언 요청 스키마 (클라이언트에서 보낼 데이터 구조에 맞춰 정의)
+const sleepAdviceSchema = z.object({
+  sleeps: z.array(z.object({
+    id: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
+    note: z.string().nullable().optional(),
+  })),
+  sleepStats: z.array(z.any()), // 더 구체적인 스키마로 대체 가능
+  weeklySleepStats: z.array(z.any()), // 더 구체적인 스키마로 대체 가능
+  hourDistributionStats: z.array(z.any()), // 더 구체적인 스키마로 대체 가능
+});
 
 // 현재 시간 이전인지 확인하는 함수
 const isBeforeNow = (date: Date) => {
@@ -291,6 +305,53 @@ export async function sleepRoutes(app: FastifyInstance) {
       return reply.status(404).send({
         error: '해당 수면 기록을 찾을 수 없습니다.',
       });
+    }
+  });
+
+  // AI 수면 조언 생성
+  app.post('/sleep/advice', async (request, reply) => {
+    try {
+      // 요청 본문의 유효성 검사
+      const { sleeps, sleepStats, weeklySleepStats, hourDistributionStats } = sleepAdviceSchema.parse(request.body);
+
+      if (!process.env.GEMINI_API_KEY) {
+        return reply.status(500).send({ error: 'Gemini API 키가 설정되지 않았습니다.' });
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const modelName = 'gemma-3-1b-it'; // 사용자 제공 코드에서 확인된 모델 이름
+
+      const promptText = `사용자의 최근 수면 기록 데이터는 다음과 같습니다: ${JSON.stringify({ sleeps, sleepStats, weeklySleepStats, hourDistributionStats })}. 이 데이터를 바탕으로 사용자의 수면 상태를 진단하고, 건강한 수면을 위한 구체적이고 실용적인 조언을 제공해 주세요. 조언은 친근하고 격려하는 어조로 작성해 주세요.`;
+      
+      const contents = [
+        {
+          role: 'user',
+          parts: [
+            { text: promptText },
+          ],
+        },
+      ];
+
+      // generateContentStream 사용
+      const result = await ai.models.generateContentStream({
+        model: modelName,
+        contents: contents,
+      });
+
+      let collectedText = '';
+      for await (const chunk of result) {
+        collectedText += chunk.text;
+      }
+
+      return reply.status(200).send({ advice: collectedText });
+    } catch (error) {
+      console.error('Error generating AI advice:', error);
+      if (error instanceof z.ZodError) {
+        const errors = error.issues.map(issue => `필드: ${issue.path.join('.')}, 오류: ${issue.message}`).join('; ');
+        return reply.status(400).send({ error: `데이터 유효성 검사 실패: ${errors}` });
+      } else {
+        return reply.status(500).send({ error: 'AI 조언 생성에 실패했습니다. 입력 데이터를 확인하거나 나중에 다시 시도해 주세요.' });
+      }
     }
   });
 } 

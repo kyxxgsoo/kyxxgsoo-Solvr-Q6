@@ -105,7 +105,7 @@ async function runMigration() {
 }
 
 // 스크립트가 직접 실행된 경우에만 마이그레이션 실행
-if (require.main === module) {
+if (import.meta.url === new URL(process.argv[1], import.meta.url).href) {
   runMigration()
 }
 

@@ -119,7 +119,7 @@ importers:
         specifier: ^13.0.0
         version: 13.0.0
       prisma:
-        specifier: ^5.16.1
+        specifier: ^5.22.0
         version: 5.22.0
       tsx:
         specifier: ^4.19.3

@@ -77,6 +77,9 @@ function App() {
   const [hourDistributionStats, setHourDistributionStats] = useState<HourDistributionStat[]>([]);
   const [showStats, setShowStats] = useState(true);
   const [showSleepList, setShowSleepList] = useState(true);
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [adviceError, setAdviceError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSleeps();
@@ -490,6 +493,40 @@ function App() {
     },
   };
 
+  const handleGetAdvice = async () => {
+    setLoadingAdvice(true);
+    setAdviceError(null);
+    setAiAdvice(null);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/sleep/advice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sleeps,
+          sleepStats,
+          weeklySleepStats,
+          hourDistributionStats,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'AI 조언을 가져오는데 실패했습니다.');
+      }
+
+      const data = await response.json();
+      setAiAdvice(data.advice);
+    } catch (error) {
+      console.error('AI 조언 생성 중 오류가 발생했습니다:', error);
+      setAdviceError(error instanceof Error ? error.message : 'AI 조언 생성 중 오류가 발생했습니다.');
+    } finally {
+      setLoadingAdvice(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">수면 기록</h1>
@@ -615,6 +652,23 @@ function App() {
           ))}
         </div>
       )}
+
+      <div className="mt-8 p-6 bg-white rounded-lg shadow-md">
+        <h2 className="text-xl font-bold mb-4">AI 수면 조언</h2>
+        <button
+          onClick={handleGetAdvice}
+          disabled={loadingAdvice}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:opacity-50"
+        >
+          {loadingAdvice ? '조언 생성 중...' : 'AI 수면 조언 받기'}
+        </button>
+        {adviceError && <p className="text-red-500 mt-2">Error: {adviceError}</p>}
+        {aiAdvice && (
+          <div className="mt-4 p-4 border rounded bg-gray-50 whitespace-pre-wrap">
+            {aiAdvice}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
