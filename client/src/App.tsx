@@ -3,12 +3,41 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Routes, Route } from 'react-router-dom'
 import SleepTracker from './components/SleepTracker'
+import { Bar, Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  PointElement,
+  LineElement,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  PointElement,
+  LineElement
+);
 
 interface Sleep {
   id: string;
   startTime: string;
   endTime: string;
   note?: string;
+}
+
+interface SleepStat {
+  date: string;
+  averageDuration: number;
+  sleepCount: number;
 }
 
 function App() {
@@ -18,9 +47,11 @@ function App() {
   const [note, setNote] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [sleepStats, setSleepStats] = useState<SleepStat[]>([]);
 
   useEffect(() => {
     fetchSleeps();
+    fetchSleepStats();
   }, []);
 
   const fetchSleeps = async () => {
@@ -30,6 +61,16 @@ function App() {
       setSleeps(data);
     } catch (error) {
       console.error('수면 기록을 불러오는데 실패했습니다:', error);
+    }
+  };
+
+  const fetchSleepStats = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/sleep/stats');
+      const data = await response.json();
+      setSleepStats(data);
+    } catch (error) {
+      console.error('수면 통계를 불러오는데 실패했습니다:', error);
     }
   };
 
@@ -68,6 +109,7 @@ function App() {
       }
 
       await fetchSleeps();
+      await fetchSleepStats();
       resetForm();
     } catch (error) {
       console.error('수면 기록 저장에 실패했습니다:', error);
@@ -93,6 +135,7 @@ function App() {
       }
 
       await fetchSleeps();
+      await fetchSleepStats();
     } catch (error) {
       console.error('수면 기록 삭제에 실패했습니다:', error);
     }
@@ -104,6 +147,71 @@ function App() {
     setNote('');
     setEditingId(null);
     setError('');
+  };
+
+  const averageDurationData = {
+    labels: sleepStats.map(stat => format(new Date(stat.date), 'MM/dd', { locale: ko })),
+    datasets: [
+      {
+        label: '평균 수면 시간 (시간)',
+        data: sleepStats.map(stat => stat.averageDuration.toFixed(2)),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        borderColor: 'rgba(75, 192, 192, 1)',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const sleepCountData = {
+    labels: sleepStats.map(stat => format(new Date(stat.date), 'MM/dd', { locale: ko })),
+    datasets: [
+      {
+        label: '수면 기록 횟수',
+        data: sleepStats.map(stat => stat.sleepCount),
+        backgroundColor: 'rgba(153, 102, 255, 0.6)',
+        borderColor: 'rgba(153, 102, 255, 1)',
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: '주간 수면 통계',
+      },
+    },
+  };
+
+  const sleepCountChartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: '주간 수면 통계',
+      },
+    },
+    scales: {
+      y: {
+        ticks: {
+          stepSize: 1,
+          callback: function(value: string | number) {
+            if (Number.isInteger(value)) {
+              return value;
+            }
+            return null;
+          },
+        },
+      },
+    },
   };
 
   return (
@@ -161,6 +269,16 @@ function App() {
           )}
         </div>
       </form>
+
+      <h2 className="text-xl font-bold mb-4">수면 통계</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="p-4 border rounded shadow">
+          <Bar data={averageDurationData} options={chartOptions} />
+        </div>
+        <div className="p-4 border rounded shadow">
+          <Line data={sleepCountData} options={sleepCountChartOptions} />
+        </div>
+      </div>
 
       <div className="space-y-4">
         {sleeps.map((sleep) => (
