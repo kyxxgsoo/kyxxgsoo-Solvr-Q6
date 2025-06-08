@@ -118,8 +118,10 @@ function App() {
   };
 
   const handleEdit = (sleep: Sleep) => {
-    setStartTime(sleep.startTime);
-    setEndTime(sleep.endTime);
+    const formattedStartTime = new Date(sleep.startTime).toISOString().slice(0, 16);
+    const formattedEndTime = new Date(sleep.endTime).toISOString().slice(0, 16);
+    setStartTime(formattedStartTime);
+    setEndTime(formattedEndTime);
     setNote(sleep.note || '');
     setEditingId(sleep.id);
   };
