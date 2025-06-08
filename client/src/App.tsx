@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format, getWeek, startOfMonth, endOfWeek, differenceInDays, startOfWeek } from 'date-fns';
+import { format, getWeek, startOfMonth, endOfWeek, differenceInDays, startOfWeek, formatISO, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { Routes, Route } from 'react-router-dom'
@@ -130,6 +130,11 @@ function App() {
     const end = new Date(endTime);
     const now = new Date();
 
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      setError('유효하지 않은 날짜 또는 시간 형식입니다. 올바르게 입력해주세요.');
+      return false;
+    }
+
     if (start >= end) {
       setError('수면 종료 시간은 시작 시간보다 이후여야 합니다.');
       return false;
@@ -146,8 +151,19 @@ function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateTimes()) return;
+    if (!validateTimes()) {
+      return;
+    }
+
+    // Format the times to a full ISO string before sending to backend
+    const formattedStartTime = formatISO(new Date(startTime));
+    const formattedEndTime = formatISO(new Date(endTime));
+
+    const sleepData = {
+      startTime: formattedStartTime,
+      endTime: formattedEndTime,
+      note,
+    };
 
     try {
       const url = editingId 
@@ -161,7 +177,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ startTime, endTime, note }),
+        body: JSON.stringify(sleepData),
       });
 
       if (!response.ok) {

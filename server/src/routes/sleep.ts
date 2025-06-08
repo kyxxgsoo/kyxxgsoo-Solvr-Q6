@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@lib/prisma';
-import { getWeek, startOfWeek, endOfWeek, format } from 'date-fns';
+import { getWeek, startOfWeek, endOfWeek, format, parseISO } from 'date-fns';
 import { differenceInHours } from 'date-fns';
 
 interface SleepEntry {
@@ -11,15 +11,20 @@ interface SleepEntry {
   note: string | null;
 }
 
-const sleepSchema = z.object({
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
+// 수면 기록 생성 스키마
+const createSleepSchema = z.object({
+  startTime: z.string(),
+  endTime: z.string(),
   note: z.string().optional(),
 });
 
+// 수면 기록 수정 스키마
+const updateSleepSchema = createSleepSchema;
+
 // 현재 시간 이전인지 확인하는 함수
 const isBeforeNow = (date: Date) => {
-  return date < new Date();
+  // Invalid Date 객체는 항상 현재 시간보다 작지 않으므로, 유효성 검사에서 걸러짐
+  return date instanceof Date && !isNaN(date.getTime()) && date < new Date();
 };
 
 // 수면 시간 중복 체크 함수
@@ -61,10 +66,15 @@ export async function sleepRoutes(app: FastifyInstance) {
   // 수면 기록 생성
   app.post('/sleep', async (request, reply) => {
     try {
-      const { startTime, endTime, note } = sleepSchema.parse(request.body);
+      const { startTime, endTime, note } = createSleepSchema.parse(request.body);
 
-      const start = new Date(startTime);
-      const end = new Date(endTime);
+      const start = parseISO(startTime);
+      const end = parseISO(endTime);
+
+      // Invalid Date 체크
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return reply.status(400).send({ error: '유효하지 않은 날짜/시간 형식입니다.' });
+      }
 
       // 시작 시간이 종료 시간보다 이후인 경우
       if (start >= end) {
@@ -93,7 +103,8 @@ export async function sleepRoutes(app: FastifyInstance) {
       return reply.status(201).send(sleep);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return reply.status(400).send({ error: '잘못된 입력 형식입니다.' });
+        const errors = error.issues.map(issue => `필드: ${issue.path.join('.')}, 오류: ${issue.message}`).join('; ');
+        return reply.status(400).send({ error: `데이터 유효성 검사 실패: ${errors}` });
       } else {
         console.error('Error creating sleep record:', error);
         return reply.status(500).send({ error: '서버 오류가 발생했습니다.' });
@@ -213,33 +224,34 @@ export async function sleepRoutes(app: FastifyInstance) {
 
   // 수면 기록 업데이트
   app.put('/sleep/:id', async (request, reply) => {
-    const paramsSchema = z.object({
-      id: z.string().uuid(),
-    });
-
-    const { id } = paramsSchema.parse(request.params);
-    const { startTime, endTime, note } = sleepSchema.parse(request.body);
-
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    // 시작 시간이 종료 시간보다 이후인 경우
-    if (start >= end) {
-      return reply.status(400).send({ error: '수면 종료 시간은 시작 시간보다 이후여야 합니다.' });
-    }
-
-    // 현재 시간보다 이후인 경우
-    if (!isBeforeNow(start) || !isBeforeNow(end)) {
-      return reply.status(400).send({ error: '수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.' });
-    }
-
-    // 수면 시간 중복 체크 (자기 자신 제외)
-    const hasOverlap = await checkSleepTimeOverlap(start, end, id);
-    if (hasOverlap) {
-      return reply.status(400).send({ error: '해당 시간대에 이미 수면 기록이 존재합니다.' });
-    }
-
     try {
+      const { id } = request.params as { id: string };
+      const { startTime, endTime, note } = updateSleepSchema.parse(request.body);
+
+      const start = parseISO(startTime);
+      const end = parseISO(endTime);
+
+      // Invalid Date 체크
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return reply.status(400).send({ error: '유효하지 않은 날짜/시간 형식입니다.' });
+      }
+
+      // 시작 시간이 종료 시간보다 이후인 경우
+      if (start >= end) {
+        return reply.status(400).send({ error: '수면 종료 시간은 시작 시간보다 이후여야 합니다.' });
+      }
+
+      // 현재 시간보다 이후인 경우
+      if (!isBeforeNow(start) || !isBeforeNow(end)) {
+        return reply.status(400).send({ error: '수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.' });
+      }
+
+      // 수면 시간 중복 체크 (자기 자신 제외)
+      const hasOverlap = await checkSleepTimeOverlap(start, end, id);
+      if (hasOverlap) {
+        return reply.status(400).send({ error: '해당 시간대에 이미 수면 기록이 존재합니다.' });
+      }
+
       const sleep = await prisma.sleep.update({
         where: { id },
         data: {
@@ -249,11 +261,15 @@ export async function sleepRoutes(app: FastifyInstance) {
         },
       });
 
-      return sleep;
+      return reply.status(200).send(sleep);
     } catch (error) {
-      return reply.status(404).send({
-        error: '해당 수면 기록을 찾을 수 없습니다.',
-      });
+      if (error instanceof z.ZodError) {
+        const errors = error.issues.map(issue => `필드: ${issue.path.join('.')}, 오류: ${issue.message}`).join('; ');
+        return reply.status(400).send({ error: `데이터 유효성 검사 실패: ${errors}` });
+      } else {
+        console.error('Error updating sleep record:', error);
+        return reply.status(500).send({ error: '서버 오류가 발생했습니다.' });
+      }
     }
   });
 
