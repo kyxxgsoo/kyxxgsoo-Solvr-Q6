@@ -1,8 +1,8 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
-import env from '../config/env'
-import * as schema from './schema'
-import { Database as DrizzleDatabase } from '../types/database'
+import env from '../config/env.js'
+import * as schema from './schema.js'
+import { Database as DrizzleDatabase } from '../types/database.js'
 
 let db: DrizzleDatabase | null = null
 

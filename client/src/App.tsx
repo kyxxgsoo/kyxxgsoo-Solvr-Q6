@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { format, getWeek, startOfMonth, endOfWeek, differenceInDays, startOfWeek, formatISO, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfWeek, differenceInDays, startOfWeek, formatISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
-import { Routes, Route } from 'react-router-dom'
-import SleepTracker from './components/SleepTracker'
 import { Bar, Line, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,

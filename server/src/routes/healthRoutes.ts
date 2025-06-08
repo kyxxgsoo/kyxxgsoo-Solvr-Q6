@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { createSuccessResponse } from '../utils/response'
+import { createSuccessResponse } from '../utils/response.js'
 
 // 헬스 체크 핸들러
 async function healthCheck(_request: FastifyRequest, reply: FastifyReply) {

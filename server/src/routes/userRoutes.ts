@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify'
-import { AppContext } from '../types/context'
-import { createUserController } from '../controllers/userController'
+import { AppContext } from '../types/context.js'
+import { createUserController } from '../controllers/userController.js'
 
 // 사용자 관련 라우트 등록
 export const createUserRoutes = (context: AppContext) => async (fastify: FastifyInstance) => {

@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { prisma } from '@lib/prisma';
+import { prisma } from '../lib/prisma.js';
 import { getWeek, startOfWeek, endOfWeek, format, parseISO, differenceInHours } from 'date-fns';
 import { GoogleGenAI } from '@google/genai';
 import 'dotenv/config';

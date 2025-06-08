@@ -2,9 +2,9 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 import Database from 'better-sqlite3'
 import { mkdir } from 'fs/promises'
 import { dirname } from 'path'
-import env from '../config/env'
-import { users } from './schema'
-import { UserRole } from '../types'
+import env from '../config/env.js'
+import { users } from './schema.js'
+import { UserRole } from '../types/index.js'
 
 // 데이터베이스 디렉토리 생성 함수
 async function ensureDatabaseDirectory() {

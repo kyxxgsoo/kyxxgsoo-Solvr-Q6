@@ -1,11 +1,11 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
-import env from './config/env'
-import { initializeDatabase, getDb } from './db'
-import runMigration from './db/migrate'
-import { createUserService } from './services/userService'
-import { createRoutes } from './routes'
-import { AppContext } from './types/context'
+import env from './config/env.js'
+import { initializeDatabase, getDb } from './db/index.js'
+import runMigration from './db/migrate.js'
+import { createUserService } from './services/userService.js'
+import { createRoutes } from './routes/index.js'
+import { AppContext } from './types/context.js'
 
 // Fastify 인스턴스 생성
 const fastify = Fastify({

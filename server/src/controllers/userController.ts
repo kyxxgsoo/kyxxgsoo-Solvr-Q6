@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { createSuccessResponse, createErrorResponse } from '../utils/response'
-import { CreateUserDto, UpdateUserDto } from '../types'
-import { UserService } from '../services/userService'
+import { createSuccessResponse, createErrorResponse } from '../utils/response.js'
+import { CreateUserDto, UpdateUserDto } from '../types/index.js'
+import { UserService } from '../services/userService.js'
 
 type UserControllerDeps = {
   userService: UserService

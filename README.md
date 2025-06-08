@@ -18,6 +18,7 @@
 - 수면 통계 및 수면 기록 목록 섹션을 접거나 펼 수 있는 기능을 제공합니다.
 - 수면 기록 생성/수정 시 현재 시간보다 미래의 시간을 입력할 수 없도록 유효성 검사를 추가했습니다.
 - 수면 기록 생성/수정 시 기존 기록과 시간이 중복될 수 없도록 유효성 검사를 추가했습니다.
+- **AI 조언 기능:** 사용자의 수면 기록 데이터를 기반으로 AI(LLM)가 수면 상태를 진단하고 개인화된 조언을 제공합니다.
 
 ## 기술 스택
 
@@ -36,6 +37,8 @@
 - Prisma
 - SQLite
 - Zod (데이터 유효성 검증)
+- **@google/genai (Google LLM API 연동)**
+- **dotenv (환경 변수 관리)**
 
 ## 시작하기
 
@@ -43,6 +46,8 @@
 1. `.env` 파일을 생성하고 다음 환경 변수를 설정합니다:
 ```env
 DATABASE_URL="file:./data/database.sqlite"
+# Google AI Studio에서 발급받은 API 키를 설정합니다.
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
 ```
 
 ### 설치 및 실행
@@ -74,6 +79,7 @@ pnpm dev
 - `GET /api/sleep/stats`: 지난 7일간의 수면 통계 조회
 - `GET /api/sleep/stats/weekly-duration`: 주별 총 수면 시간 추이 조회
 - `GET /api/sleep/stats/hour-distribution`: 수면 시간대별 분포 조회
+- **`POST /api/sleep/advice`: 수면 기록 데이터를 기반으로 AI 조언 생성**
 
 ### 요청/응답 형식
 ```typescript
@@ -82,6 +88,22 @@ pnpm dev
   "startTime": "2024-03-20T23:00:00Z",
   "endTime": "2024-03-21T07:00:00Z",
   "note": "수면의 질이 좋았음"
+}
+
+// POST /api/sleep/advice 요청 바디 예시
+{
+  "sleeps": [
+    // Sleep record objects
+  ],
+  "sleepStats": [
+    // Daily sleep stats objects
+  ],
+  "weeklySleepStats": [
+    // Weekly sleep stats objects
+  ],
+  "hourDistributionStats": [
+    // Hourly distribution stats objects
+  ]
 }
 ```
 
@@ -93,6 +115,18 @@ pnpm dev
 - 특이사항(note)은 선택사항입니다.
 
 ## Changelog
+
+### Task 3: Mission Complete!
+- **AI 조언 기능 추가:**
+  - Google LLM API (`@google/genai`와 `gemma-3-1b-it` 모델)를 활용하여 사용자의 수면 기록 데이터를 기반으로 수면 상태를 진단하고 개인화된 AI 조언을 제공합니다.
+  - 백엔드 (`server/src/routes/sleep.ts`)에 `POST /api/sleep/advice` 엔드포인트를 추가하여 클라이언트로부터 수면 데이터를 받아 LLM을 호출하고 조언을 생성합니다.
+  - 클라이언트 (`client/src/App.tsx`)에 AI 조언을 요청하고 표시하는 UI를 추가했습니다.
+- **서버 환경 및 코드 개선:**
+  - 서버 프로젝트를 ES 모듈 (`server/package.json`의 `"type": "module"`)로 전환함에 따라 발생한 TypeScript 임포트 경로 오류 (`.js` 확장자 누락)를 수정했습니다.
+  - `server/src/types/index.ts`에서 `NewUser` 임포트 오류 및 기타 모듈 참조 오류를 해결했습니다.
+  - `server/src/lib/prisma.ts`의 임포트 경로를 `@lib/prisma`에서 상대 경로로 수정하여 모듈을 찾을 수 없는 문제를 해결했습니다.
+- **클라이언트 코드 정리:**
+  - `client/src/App.tsx`에서 사용되지 않는 `parseISO`, `getWeek` 임포트를 제거하여 린터 경고를 해결하고 코드를 정리했습니다.
 
 ### Task 2: Mission Complete!
 - **통계 정보 화면 개선:**
