@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
+import { prisma } from '@lib/prisma';
+import { getWeek, startOfWeek, endOfWeek, format } from 'date-fns';
 
 interface SleepEntry {
   id: string;
@@ -85,6 +86,67 @@ export async function sleepRoutes(app: FastifyInstance) {
     }));
 
     return formattedStats;
+  });
+
+  // 주별 총 수면 시간 조회
+  app.get('/sleep/stats/weekly-duration', async () => {
+    const allSleeps = await prisma.sleep.findMany({
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
+
+    const weeklyStats: { [key: string]: { totalDuration: number, weekStart: Date } } = {};
+
+    allSleeps.forEach((sleep: SleepEntry) => {
+      const weekStart = startOfWeek(sleep.startTime, { weekStartsOn: 0 });
+      const weekKey = format(weekStart, 'yyyy-MM-dd');
+
+      const duration = (sleep.endTime.getTime() - sleep.startTime.getTime()) / (1000 * 60 * 60);
+
+      if (!weeklyStats[weekKey]) {
+        weeklyStats[weekKey] = { totalDuration: 0, weekStart: weekStart };
+      }
+      weeklyStats[weekKey].totalDuration += duration;
+    });
+
+    const formattedWeeklyStats = Object.keys(weeklyStats).sort().map(weekKey => ({
+      week: format(weeklyStats[weekKey].weekStart, 'yyyy-MM-dd'),
+      totalDuration: weeklyStats[weekKey].totalDuration,
+    }));
+
+    return formattedWeeklyStats;
+  });
+
+  // 수면 시간대별 분포 조회
+  app.get('/sleep/stats/hour-distribution', async () => {
+    const allSleeps = await prisma.sleep.findMany({
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
+
+    const hourDistribution: { [key: string]: { starts: number, ends: number } } = {};
+    for (let i = 0; i < 24; i++) {
+      const hourKey = String(i).padStart(2, '0');
+      hourDistribution[hourKey] = { starts: 0, ends: 0 };
+    }
+
+    allSleeps.forEach((sleep: SleepEntry) => {
+      const startHour = new Date(sleep.startTime).getHours();
+      const endHour = new Date(sleep.endTime).getHours();
+
+      hourDistribution[String(startHour).padStart(2, '0')].starts += 1;
+      hourDistribution[String(endHour).padStart(2, '0')].ends += 1;
+    });
+
+    const formattedDistribution = Object.keys(hourDistribution).sort().map(hourKey => ({
+      hour: hourKey,
+      starts: hourDistribution[hourKey].starts,
+      ends: hourDistribution[hourKey].ends,
+    }));
+
+    return formattedDistribution;
   });
 
   // 수면 기록 업데이트
