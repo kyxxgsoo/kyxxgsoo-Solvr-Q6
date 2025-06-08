@@ -37,6 +37,7 @@ async function start() {
 
     // 서비스 및 컨텍스트 초기화
     const db = await getDb()
+    fastify.decorate('db', db)
     const context: AppContext = {
       userService: createUserService({ db })
     }
