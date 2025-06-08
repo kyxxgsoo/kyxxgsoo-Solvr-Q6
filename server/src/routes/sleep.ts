@@ -2,6 +2,13 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 
+interface SleepEntry {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  note: string | null;
+}
+
 const sleepSchema = z.object({
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
@@ -40,6 +47,44 @@ export async function sleepRoutes(app: FastifyInstance) {
     });
 
     return sleeps;
+  });
+
+  // 수면 통계 조회 (지난 7일간의 평균 수면 시간 및 기록 횟수)
+  app.get('/sleep/stats', async () => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const sleepStats = await prisma.sleep.findMany({
+      where: {
+        startTime: {
+          gte: sevenDaysAgo,
+        },
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+    });
+
+    const dailyStats: { [key: string]: { totalDuration: number, count: number } } = {};
+
+    sleepStats.forEach((sleep: SleepEntry) => {
+      const dateKey = sleep.startTime.toISOString().split('T')[0];
+      const duration = (sleep.endTime.getTime() - sleep.startTime.getTime()) / (1000 * 60 * 60); // 시간을 시간 단위로
+
+      if (!dailyStats[dateKey]) {
+        dailyStats[dateKey] = { totalDuration: 0, count: 0 };
+      }
+      dailyStats[dateKey].totalDuration += duration;
+      dailyStats[dateKey].count += 1;
+    });
+
+    const formattedStats = Object.keys(dailyStats).sort().map(dateKey => ({
+      date: dateKey,
+      averageDuration: dailyStats[dateKey].totalDuration / dailyStats[dateKey].count,
+      sleepCount: dailyStats[dateKey].count,
+    }));
+
+    return formattedStats;
   });
 
   // 수면 기록 업데이트

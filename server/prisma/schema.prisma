@@ -1,0 +1,15 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Sleep {
+  id        String   @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime
+  note      String? // nullable
+} 
