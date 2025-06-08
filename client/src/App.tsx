@@ -495,20 +495,20 @@ function App() {
       </form>
 
       <h2 className="text-xl font-bold mb-4">수면 통계</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <div className="p-4 border rounded shadow">
+      <div className="grid grid-cols-1 gap-4 mb-8">
+        <div className="p-4 border rounded shadow min-h-80">
           <Bar data={averageDurationData} options={chartOptions} />
         </div>
-        <div className="p-4 border rounded shadow">
+        <div className="p-4 border rounded shadow min-h-80">
           <Line data={sleepCountData} options={sleepCountChartOptions} />
         </div>
-        <div className="p-4 border rounded shadow">
+        <div className="p-4 border rounded shadow min-h-80">
           <Scatter data={scatterData} options={scatterChartOptions} />
         </div>
-        <div className="p-4 border rounded shadow">
+        <div className="p-4 border rounded shadow min-h-80">
           <Bar data={weeklyDurationData} options={weeklyDurationChartOptions} />
         </div>
-        <div className="p-4 border rounded shadow">
+        <div className="p-4 border rounded shadow min-h-80">
           <Bar data={hourDistributionData} options={hourDistributionChartOptions} />
         </div>
       </div>
