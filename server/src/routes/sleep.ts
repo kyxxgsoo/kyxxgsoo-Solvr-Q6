@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@lib/prisma';
 import { getWeek, startOfWeek, endOfWeek, format } from 'date-fns';
+import { differenceInHours } from 'date-fns';
 
 interface SleepEntry {
   id: string;
@@ -16,49 +17,88 @@ const sleepSchema = z.object({
   note: z.string().optional(),
 });
 
+// 현재 시간 이전인지 확인하는 함수
+const isBeforeNow = (date: Date) => {
+  return date < new Date();
+};
+
+// 수면 시간 중복 체크 함수
+const checkSleepTimeOverlap = async (startTime: Date, endTime: Date, excludeId?: string) => {
+  const existingSleep = await prisma.sleep.findFirst({
+    where: {
+      AND: [
+        {
+          OR: [
+            {
+              AND: [
+                { startTime: { lte: startTime } },
+                { endTime: { gt: startTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { lt: endTime } },
+                { endTime: { gte: endTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { gte: startTime } },
+                { endTime: { lte: endTime } },
+              ],
+            },
+          ],
+        },
+        ...(excludeId ? [{ id: { not: excludeId } }] : []),
+      ],
+    },
+  });
+
+  return !!existingSleep;
+};
+
 export async function sleepRoutes(app: FastifyInstance) {
   // 수면 기록 생성
   app.post('/sleep', async (request, reply) => {
-    const { startTime, endTime, note } = sleepSchema.parse(request.body);
+    try {
+      const { startTime, endTime, note } = sleepSchema.parse(request.body);
 
-    // 수면 시간 유효성 검증
-    if (new Date(startTime) >= new Date(endTime)) {
-      return reply.status(400).send({
-        error: '수면 시작 시간은 종료 시간보다 이전이어야 합니다.',
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      // 시작 시간이 종료 시간보다 이후인 경우
+      if (start >= end) {
+        return reply.status(400).send({ error: '수면 종료 시간은 시작 시간보다 이후여야 합니다.' });
+      }
+
+      // 현재 시간보다 이후인 경우
+      if (!isBeforeNow(start) || !isBeforeNow(end)) {
+        return reply.status(400).send({ error: '수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.' });
+      }
+
+      // 수면 시간 중복 체크
+      const hasOverlap = await checkSleepTimeOverlap(start, end);
+      if (hasOverlap) {
+        return reply.status(400).send({ error: '해당 시간대에 이미 수면 기록이 존재합니다.' });
+      }
+
+      const sleep = await prisma.sleep.create({
+        data: {
+          startTime: start,
+          endTime: end,
+          note,
+        },
       });
+
+      return reply.status(201).send(sleep);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: '잘못된 입력 형식입니다.' });
+      } else {
+        console.error('Error creating sleep record:', error);
+        return reply.status(500).send({ error: '서버 오류가 발생했습니다.' });
+      }
     }
-
-    // 중복 수면 시간 유효성 검증
-    const overlappingSleeps = await prisma.sleep.findMany({
-      where: {
-        OR: [
-          {
-            startTime: {
-              lt: new Date(endTime),
-            },
-            endTime: {
-              gt: new Date(startTime),
-            },
-          },
-        ],
-      },
-    });
-
-    if (overlappingSleeps.length > 0) {
-      return reply.status(400).send({
-        error: '이미 해당 시간에 다른 수면 기록이 존재합니다.',
-      });
-    }
-
-    const sleep = await prisma.sleep.create({
-      data: {
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        note,
-      },
-    });
-
-    return reply.status(201).send(sleep);
   });
 
   // 수면 기록 목록 조회
@@ -180,44 +220,31 @@ export async function sleepRoutes(app: FastifyInstance) {
     const { id } = paramsSchema.parse(request.params);
     const { startTime, endTime, note } = sleepSchema.parse(request.body);
 
-    // 수면 시간 유효성 검증
-    if (new Date(startTime) >= new Date(endTime)) {
-      return reply.status(400).send({
-        error: '수면 시작 시간은 종료 시간보다 이전이어야 합니다.',
-      });
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // 시작 시간이 종료 시간보다 이후인 경우
+    if (start >= end) {
+      return reply.status(400).send({ error: '수면 종료 시간은 시작 시간보다 이후여야 합니다.' });
     }
 
-    // 중복 수면 시간 유효성 검증 (현재 수정 중인 기록 제외)
-    const overlappingSleeps = await prisma.sleep.findMany({
-      where: {
-        id: {
-          not: id, // 현재 업데이트 중인 기록 제외
-        },
-        OR: [
-          {
-            startTime: {
-              lt: new Date(endTime),
-            },
-            endTime: {
-              gt: new Date(startTime),
-            },
-          },
-        ],
-      },
-    });
+    // 현재 시간보다 이후인 경우
+    if (!isBeforeNow(start) || !isBeforeNow(end)) {
+      return reply.status(400).send({ error: '수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.' });
+    }
 
-    if (overlappingSleeps.length > 0) {
-      return reply.status(400).send({
-        error: '이미 해당 시간에 다른 수면 기록이 존재합니다.',
-      });
+    // 수면 시간 중복 체크 (자기 자신 제외)
+    const hasOverlap = await checkSleepTimeOverlap(start, end, id);
+    if (hasOverlap) {
+      return reply.status(400).send({ error: '해당 시간대에 이미 수면 기록이 존재합니다.' });
     }
 
     try {
       const sleep = await prisma.sleep.update({
         where: { id },
         data: {
-          startTime: new Date(startTime),
-          endTime: new Date(endTime),
+          startTime: start,
+          endTime: end,
           note,
         },
       });

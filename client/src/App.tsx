@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, getWeek, startOfMonth, endOfWeek, differenceInDays, startOfWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import 'chartjs-adapter-date-fns';
 import { Routes, Route } from 'react-router-dom'
@@ -55,6 +55,15 @@ interface HourDistributionStat {
   starts: number;
   ends: number;
 }
+
+// Helper function to get the week number of the month
+const getWeekOfMonth = (date: Date, weekStartsOn: 0 | 1 = 0): number => {
+  const firstDayOfMonth = startOfMonth(date);
+  const firstDayOfFirstWeekOfMonth = startOfWeek(firstDayOfMonth, { weekStartsOn });
+  const diffInDays = differenceInDays(date, firstDayOfFirstWeekOfMonth);
+  // A week has 7 days. Add 1 because it's 1-indexed week number
+  return Math.floor(diffInDays / 7) + 1;
+};
 
 function App() {
   const [sleeps, setSleeps] = useState<Sleep[]>([]);
@@ -117,10 +126,20 @@ function App() {
   };
 
   const validateTimes = () => {
-    if (new Date(startTime) >= new Date(endTime)) {
-      setError('수면 시작 시간은 종료 시간보다 이전이어야 합니다.');
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const now = new Date();
+
+    if (start >= end) {
+      setError('수면 종료 시간은 시작 시간보다 이후여야 합니다.');
       return false;
     }
+
+    if (start > now || end > now) {
+      setError('수면 시작/종료 시간은 현재 시간보다 이후일 수 없습니다.');
+      return false;
+    }
+
     setError('');
     return true;
   };
@@ -349,7 +368,22 @@ function App() {
   };
 
   const weeklyDurationData = {
-    labels: weeklySleepStats.map(stat => format(new Date(stat.week), 'MM/dd', { locale: ko })),
+    labels: weeklySleepStats.map(stat => {
+      const weekStartDate = new Date(stat.week); // This `stat.week` is already the start of the week from the backend
+      const weekEndDate = endOfWeek(weekStartDate, { weekStartsOn: 0 });
+
+      const startMonth = format(weekStartDate, 'M월', { locale: ko });
+      const startWeekNumber = getWeekOfMonth(weekStartDate, 0);
+
+      const endMonth = format(weekEndDate, 'M월', { locale: ko });
+      const endWeekNumber = getWeekOfMonth(weekEndDate, 0);
+
+      if (startMonth === endMonth) {
+        return `${startMonth} ${startWeekNumber}주차`;
+      } else {
+        return `${startMonth} ${startWeekNumber}주차 ~ ${endMonth} ${endWeekNumber}주차`;
+      }
+    }),
     datasets: [
       {
         label: '주간 총 수면 시간 (시간)',
